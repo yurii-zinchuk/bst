@@ -3,13 +3,12 @@ File: linkedbst.py
 Author: Ken Lambert
 """
 
-from platform import node
 from time import perf_counter
 from abstractcollection import AbstractCollection
 from bstnode import BSTNode
-from linkedqueue import LinkedQueue
 from linkedstack import LinkedStack
 from math import log
+from tqdm import tqdm
 import random
 
 
@@ -84,23 +83,6 @@ class LinkedBST(AbstractCollection):
     def find(self, item):
         """If item matches an item in self, returns the
         matched item, or None otherwise."""
-
-        # def recurse(node):
-        #     if node is None:
-        #         return None
-        #     elif item == node.data:
-        #         return node.data
-        #     elif item < node.data:
-        #         return recurse(node.left)
-        #     else:
-        #         return recurse(node.right)
-
-        # return recurse(self._root)
-
-        # elements = set([elem.data for elem in self])
-        # if item not in elements:
-        #     return None
-        
         try:
             node = self._root
             while True:
@@ -121,31 +103,6 @@ class LinkedBST(AbstractCollection):
 
     def add(self, item):
         """Adds item to the tree."""
-
-        # # Helper function to search for item's position
-        # def recurse(node):
-        #     # New item is less, go left until spot is found
-        #     if item < node.data:
-        #         if node.left == None:
-        #             node.left = BSTNode(item)
-        #         else:
-        #             recurse(node.left)
-        #     # New item is greater or equal,
-        #     # go right until spot is found
-        #     elif node.right == None:
-        #         node.right = BSTNode(item)
-        #     else:
-        #         recurse(node.right)
-        #         # End of recurse
-
-        # # Tree is empty, so new item goes at the root
-        # if self.isEmpty():
-        #     self._root = BSTNode(item)
-        # # Otherwise, search for the item's spot
-        # else:
-        #     recurse(self._root)
-        # self._size += 1
-
         if self._root is not None:
             node = self._root
         else:
@@ -290,11 +247,9 @@ class LinkedBST(AbstractCollection):
             height = 0
             while cur_comp.data != top.data:
                 if top.data < cur_comp.data:
-                    # go left
                     cur_comp = cur_comp.left
                     height += 1
                 else:
-                    # go right
                     cur_comp = cur_comp.right
                     height += 1
             return height
@@ -332,12 +287,18 @@ class LinkedBST(AbstractCollection):
         Rebalances the tree.
         :return:
         '''
-        tree_cp = [node.data for node in self]
+        elements = [node.data for node in self]
+        elements.sort(key=lambda x: x)
         self.clear()
-        tree_cp.sort(key=lambda x: x)
-        while tree_cp:
-            middle = tree_cp.pop((len(tree_cp))//2)
-            self.add(middle)
+
+        def recurse(nodes: list):
+            if len(nodes) == 0:
+                return None
+            middle = len(nodes)//2
+            self.add(nodes.pop(middle))
+            recurse(nodes[:middle])
+            recurse(nodes[middle:])
+        recurse(elements)
 
     def successor(self, item):
         """
@@ -371,6 +332,84 @@ class LinkedBST(AbstractCollection):
         except ValueError:
             pass
 
+    @staticmethod
+    def get_vocabulary(path: str) -> tuple[list]:
+        with open(path, "r") as file:
+            vocabulary = [line[:-1] for line in file]
+        random_10000 = random.sample(vocabulary, 10000)
+        return vocabulary, random_10000
+
+    @staticmethod
+    def find_list(voc: list, to_find: list) -> float:
+        """Return time to find words in a list.
+
+        Args:
+            voc (list): Full vocabulary.
+            to_find (list): Words to find.
+
+        Returns:
+            float: Time taken in seconds.
+        """
+        start = perf_counter()
+        for word in to_find:
+            voc.index(word)
+        end = perf_counter()
+        return end-start
+
+    def find_tree1(self, voc: list, to_find: list) -> float:
+        """Return time to find words in alphabetic tree.
+
+        Args:
+            voc (list): Full vocabulary.
+            to_find (list): Words to find.
+
+        Returns:
+            float: Time taken in minutes..
+        """
+        for word in voc:
+            self.add(word)
+        start = perf_counter()
+        for word in to_find:
+            self.find(word)
+        end = perf_counter()
+        self.clear()
+        return (end-start)/60
+
+    def find_tree2(self, voc: list, to_find: list) -> float:
+        """Return  time to find words in random tree.
+
+        Args:
+            voc (list): Full vocabulary.
+            to_find (list): Words to find.
+
+        Returns:
+            float: Time taken in seconds.
+        """
+        random.shuffle(voc)
+        for word in voc:
+            self.add(word)
+        start = perf_counter()
+        for word in to_find:
+            self.find(word)
+        end = perf_counter()
+        return end-start
+
+    def find_tree3(self, to_find: list) -> float:
+        """Return time to find words in balanced tree.
+
+        Args:
+            to_find (list): Words to find.
+
+        Returns:
+            float: Time taken in seconds.
+        """
+        self.rebalance()
+        start = perf_counter()
+        for word in to_find:
+            self.find(word)
+        end = perf_counter()
+        return end-start
+
     def demo_bst(self, path):
         """
         Demonstration of efficiency binary search tree for the search tasks.
@@ -379,37 +418,19 @@ class LinkedBST(AbstractCollection):
         :return:
         :rtype:
         """
-        with open(path, "r") as file:
-            vocabulary = [line[:-1] for line in file]
-        random_10000 = random.sample(vocabulary, 10000)
+        vocabulary, to_find = self.get_vocabulary(path)
 
+        taken1 = self.find_list(vocabulary, to_find)
+        print(f"Time to find in list: {taken1} sec.")
+       
+        taken2 = self.find_tree1(vocabulary, to_find)
+        print(f"Time to find in alpahbetic tree: {taken2} min.")
 
-        start = perf_counter()
-        for word in random_10000:
-            vocabulary.index(word)
-        end = perf_counter()
-        taken1 = end-start
-        print(f"Time to find in list: {taken1}")
-
-
-        for word in vocabulary:
-            self.add(word)
-        start = perf_counter()
-        for word in random_10000:
-            self.find(word)
-        end = perf_counter()
-        taken2 = end = start
-        print(f"Time to find in alpahbetic tree: {taken2}")
-
-        random.shuffle(vocabulary)
-        for word in vocabulary:
-            self.add(word)
-        start = perf_counter()
-        for word in random_10000:
-            self.find(word)
-        end = perf_counter()
-        taken3 = end - start
-        print(f"Time to find in random tree: {taken3}")
+        taken3 = self.find_tree2(vocabulary, to_find)
+        print(f"Time to find in random tree: {taken3} sec.")
+        
+        taken4 = self.find_tree3(to_find)
+        print(f"Time to find in balanced tree: {taken4} sec.")
 
 
 if __name__ == "__main__":

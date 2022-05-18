@@ -8,7 +8,6 @@ from abstractcollection import AbstractCollection
 from bstnode import BSTNode
 from linkedstack import LinkedStack
 from math import log
-from tqdm import tqdm
 import random
 
 
